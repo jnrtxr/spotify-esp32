@@ -1,0 +1,7 @@
+# Dependências Python para os scripts de teste e setup
+# Instale com: pip install -r requirements.txt
+
+requests>=2.28.0
+python-dotenv>=1.0.0    # Opcional: carrega .env automaticamente
+Pillow>=10.0.0          # Redimensionar capa + simulador visual
+# tkinter já vem incluso no Python (não precisa instalar)

@@ -26,6 +26,32 @@
 #include "json_parser.h"
 #include "ui_renderer.h"
 
+// ---- LED RGB (CYD - ativo em LOW) ----
+#define LED_R 4
+#define LED_G 16
+#define LED_B 17
+
+void led_init() {
+    pinMode(LED_R, OUTPUT);
+    pinMode(LED_G, OUTPUT);
+    pinMode(LED_B, OUTPUT);
+    // Desliga tudo (HIGH = off)
+    digitalWrite(LED_R, HIGH);
+    digitalWrite(LED_G, HIGH);
+    digitalWrite(LED_B, HIGH);
+}
+
+void led_set(bool r, bool g, bool b) {
+    digitalWrite(LED_R, r ? LOW : HIGH);
+    digitalWrite(LED_G, g ? LOW : HIGH);
+    digitalWrite(LED_B, b ? LOW : HIGH);
+}
+
+void led_off()     { led_set(false, false, false); }
+void led_green()   { led_set(false, true, false); }   // Tocando
+void led_blue()    { led_set(false, false, true); }   // Pausado
+void led_red()     { led_set(true, false, false); }   // Erro
+
 // ============================================================
 // Máquina de estados principal
 // ============================================================
@@ -56,7 +82,7 @@ static int s_error_count = 0;
 static const int MAX_ERRORS_BEFORE_RECONNECT = 5;
 
 // ---- Intervalo de atualização da UI ----
-#define MARQUEE_UPDATE_MS   50    // Atualiza marquee a cada 50ms (~20fps)
+#define MARQUEE_UPDATE_MS   80    // Atualiza marquee a cada 80ms (mais lento e suave)
 #define PROGRESS_UPDATE_MS  1000  // Atualiza barra a cada 1 segundo
 
 // ============================================================
@@ -129,6 +155,9 @@ void handle_state_boot() {
     // Inicializa display
     display_init();
     ui_renderer_init();
+
+    // Inicializa LED RGB
+    led_init();
 
     // Mostra tela de "Conectando..."
     ui_renderer_draw_connecting();
@@ -233,17 +262,28 @@ void handle_state_polling() {
                 s_error_count = 0;
                 TrackInfo* track = json_parser_get_track();
 
+                // LED RGB conforme estado
+                if (track->is_playing) {
+                    led_green();
+                } else {
+                    led_blue();
+                }
+
                 // Atualiza estado local
                 s_is_playing = track->is_playing;
                 s_duration_ms = track->duration_ms;
                 s_local_progress_ms = track->progress_ms;
                 s_progress_sync_millis = millis(); // Marca momento do sync
+
+                // Detecta se voltou de "idle" para "tocando" (mesma música)
+                bool was_idle = !s_has_track;
                 s_has_track = true;
 
-                // Se o track mudou, baixa nova capa
-                if (spotify_poller_track_changed()) {
+                // Se o track mudou OU voltou do idle, redesenha tudo
+                if (spotify_poller_track_changed() || was_idle) {
                     // Redesenha tela completa
                     display_clear();
+                    ui_renderer_reset_cache();
 
                     // Baixa e renderiza a capa
                     uint8_t* cover_buf = nullptr;
@@ -260,15 +300,14 @@ void handle_state_polling() {
                     ui_renderer_update_progress(track->progress_ms, track->duration_ms, track->is_playing);
                 }
 
-                // Indicador de pausa
-                if (!track->is_playing) {
-                    ui_renderer_draw_paused_indicator();
-                }
+                // Atualiza ícone play/pause a cada poll
+                ui_renderer_draw_track(track);
                 break;
             }
 
             case POLL_NO_CONTENT:
                 // Nada tocando
+                led_off();
                 if (s_has_track) { // Só redesenha se mudou
                     ui_renderer_draw_idle();
                     s_has_track = false;
@@ -292,6 +331,7 @@ void handle_state_polling() {
                 break;
 
             case POLL_ERROR_NETWORK:
+                led_red();
                 s_error_count++;
                 if (s_error_count > MAX_ERRORS_BEFORE_RECONNECT) {
                     ui_renderer_draw_error("Rede instável");

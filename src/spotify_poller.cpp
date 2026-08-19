@@ -193,10 +193,15 @@ uint32_t spotify_poller_download_cover(const String& url, uint8_t** out_buffer) 
         return 0;
     }
 
-    // Aloca buffer na PSRAM
-    uint8_t* buffer = (uint8_t*)ps_malloc(contentLength);
+    // Aloca buffer na heap (usa PSRAM se disponível, senão RAM normal)
+    uint8_t* buffer = nullptr;
+    #ifdef BOARD_HAS_PSRAM
+        buffer = (uint8_t*)ps_malloc(contentLength);
+    #else
+        buffer = (uint8_t*)malloc(contentLength);
+    #endif
     if (!buffer) {
-        Serial.println("[POLLER] Falha ao alocar PSRAM para capa");
+        Serial.println("[POLLER] Falha ao alocar memória para capa");
         http.end();
         return 0;
     }

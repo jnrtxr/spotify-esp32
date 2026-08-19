@@ -16,8 +16,8 @@
 #include <TJpg_Decoder.h>
 
 // ---- Dimensões do display ----
-// Altere aqui se trocar para um display de tamanho diferente
-#define DISPLAY_WIDTH  240
+// ILI9341 2.8" - resolução 320x240 (paisagem, rotação 1)
+#define DISPLAY_WIDTH  320
 #define DISPLAY_HEIGHT 240
 
 // ---- Cores customizadas (RGB565) ----

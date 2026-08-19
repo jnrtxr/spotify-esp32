@@ -14,32 +14,25 @@
 #include "display_driver.h"
 
 // Instância global do TFT_eSPI (configurado via build_flags)
-static TFT_eSPI tft = TFT_eSPI(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+static TFT_eSPI tft = TFT_eSPI();
 
 // ============================================================
 // display_init()
 // Inicializa o hardware do display e configura o decodificador JPEG
 // ============================================================
 void display_init() {
+    // Liga backlight IMEDIATAMENTE (GPIO 21 na CYD)
+    pinMode(21, OUTPUT);
+    digitalWrite(21, HIGH);
+
     // Inicializa o controlador TFT
     tft.init();
 
-    // Rotação: 0=normal, 1=90°, 2=180°, 3=270°
-    // Definido em build_flags como TFT_ROTATION, padrão 0
-    #ifdef TFT_ROTATION
-        tft.setRotation(TFT_ROTATION);
-    #else
-        tft.setRotation(0);
-    #endif
+    // Paisagem
+    tft.setRotation(1);
 
-    // Preenche tela com cor de fundo
-    tft.fillScreen(COLOR_BG);
-
-    // Configura backlight (pino definido em build_flags como TFT_BL)
-    #ifdef TFT_BL
-        pinMode(TFT_BL, OUTPUT);
-        digitalWrite(TFT_BL, HIGH); // Liga backlight
-    #endif
+    // Preenche tela com preto
+    tft.fillScreen(TFT_BLACK);
 
     // Configura o TJpg_Decoder
     // Escala JPEG: 1 = sem escala, 2 = metade, 4 = quarto, 8 = oitavo
@@ -67,8 +60,8 @@ TFT_eSPI* display_get_tft() {
 // Controla o backlight do display
 // ============================================================
 void display_backlight(bool on) {
-    #ifdef TFT_BL
-        digitalWrite(TFT_BL, on ? HIGH : LOW);
+    #if defined(TFT_BL) && (TFT_BL >= 0)
+        digitalWrite(TFT_BL, on ? TFT_BACKLIGHT_ON : !TFT_BACKLIGHT_ON);
     #endif
 }
 
